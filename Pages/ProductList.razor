@@ -1,0 +1,115 @@
+﻿@page "/product-list"
+@inject SalesforceAuthService AuthService
+
+<h3>Products Without Pricebook Entry</h3>
+
+@if (IsLoading)
+{
+    <p>Loading products...</p>
+}
+else if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color: red;"><strong>Error:</strong> @ErrorMessage</p>
+}
+else if (Products.Count == 0)
+{
+    <p>No products without pricebook entries found.</p>
+}
+else
+{
+    <label for="pricebookDropdown">Select Pricebook:</label>
+    <select id="pricebookDropdown" @bind="SelectedPricebookId" class="form-control">
+        <option value="">-- Select Pricebook --</option>
+        @foreach (var pricebook in Pricebooks)
+        {
+            <option value="@pricebook.Id">@pricebook.Name</option>
+        }
+    </select>
+
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>Add to Pricebook</th>
+                <th>Product ID</th>
+                <th>Product Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in Products)
+            {
+                <tr>
+                    <td>
+                        <input type="checkbox" @bind="product.IsSelected" />
+                    </td>
+                    <td>@product.Id</td>
+                    <td>@product.Name</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-primary" @onclick="AddProductsToPricebook" disabled="@(string.IsNullOrEmpty(SelectedPricebookId) || !Products.Any(p => p.IsSelected))">
+        Add Selected Products to Pricebook
+    </button>
+}
+
+@code {
+    private List<Product> Products = new();
+    private List<(string Id, string Name)> Pricebooks = new();
+    private string ErrorMessage = "";
+    private bool IsLoading = true;
+    private string SelectedPricebookId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+            var accessToken = await AuthService.GetAccessTokenAsync();
+
+            // Retrieve products without pricebook entries
+            Products = (await AuthService.GetProductsWithoutPricebookEntryAsync(accessToken))
+                .Select(p => new Product { Id = p.Id, Name = p.Name })
+                .ToList();
+
+            // Retrieve available pricebooks
+            Pricebooks = await AuthService.GetPricebooksAsync(accessToken);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task AddProductsToPricebook()
+    {
+        try
+        {
+            var accessToken = await AuthService.GetAccessTokenAsync();
+            var selectedProducts = Products.Where(p => p.IsSelected).Select(p => p.Id).ToList();
+
+            await AuthService.AddProductsToPricebookAsync(accessToken, SelectedPricebookId, selectedProducts);
+
+            // Refresh product list after successful addition
+            Products = (await AuthService.GetProductsWithoutPricebookEntryAsync(accessToken))
+                .Select(p => new Product { Id = p.Id, Name = p.Name })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private class Product
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public bool IsSelected { get; set; }
+    }
+}

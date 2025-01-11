@@ -1,0 +1,51 @@
+﻿@page "/"
+@inject SalesforceAuthService AuthService
+
+<h3>Salesforce EDI</h3>
+
+<button @onclick="RetrieveToken">Get Access Token</button>
+
+@if (!string.IsNullOrEmpty(AccessToken))
+{
+    <p><strong>Access Token:</strong> @AccessToken</p>
+}
+
+@code {
+    private string AccessToken = "";
+    private bool IsLoading = true;
+    private string ErrorMessage = "";
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Attempt to retrieve the access token
+            AccessToken = await AuthService.GetAccessTokenAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle errors and show the message
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+
+    private async Task RetrieveToken()
+    {
+ 
+     string AccessToken = "";
+        try
+        {
+           // AccessToken = await AuthService.GetAccessTokenAsync(ClientId, ClientSecret, Username, Password);
+            AccessToken = await AuthService.GetAccessTokenAsync();
+
+        }
+        catch (Exception ex)
+        {
+            AccessToken = $"Error: {ex.Message}";
+        }
+    }
+}
