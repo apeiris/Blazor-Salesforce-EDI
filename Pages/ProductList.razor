@@ -1,5 +1,5 @@
 ﻿@page "/product-list"
-@inject SalesforceAuthService AuthService
+@inject SalesforceServices SFService
 
 <h3>Products Without Pricebook Entry</h3>
 
@@ -32,6 +32,7 @@ else
                 <th>Add to Pricebook</th>
                 <th>Product ID</th>
                 <th>Product Name</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -43,6 +44,9 @@ else
                     </td>
                     <td>@product.Id</td>
                     <td>@product.Name</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => RemoveProduct(product)">Delete</button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -66,15 +70,15 @@ else
         {
             IsLoading = true;
 
-            var accessToken = await AuthService.GetAccessTokenAsync();
+            var accessToken = await SFService.GetAccessTokenAsync();
 
             // Retrieve products without pricebook entries
-            Products = (await AuthService.GetProductsWithoutPricebookEntryAsync(accessToken))
+            Products = (await SFService.GetProductsWithoutPricebookEntryAsync(accessToken))
                 .Select(p => new Product { Id = p.Id, Name = p.Name })
                 .ToList();
 
             // Retrieve available pricebooks
-            Pricebooks = await AuthService.GetPricebooksAsync(accessToken);
+            Pricebooks = await SFService.GetPricebooksAsync(accessToken);
         }
         catch (Exception ex)
         {
@@ -90,19 +94,37 @@ else
     {
         try
         {
-            var accessToken = await AuthService.GetAccessTokenAsync();
+            var accessToken = await SFService.GetAccessTokenAsync();
             var selectedProducts = Products.Where(p => p.IsSelected).Select(p => p.Id).ToList();
 
-            await AuthService.AddProductsToPricebookAsync(accessToken, SelectedPricebookId, selectedProducts);
+            await SFService.AddProductsToPricebookAsync(accessToken, SelectedPricebookId, selectedProducts);
 
             // Refresh product list after successful addition
-            Products = (await AuthService.GetProductsWithoutPricebookEntryAsync(accessToken))
+            Products = (await SFService.GetProductsWithoutPricebookEntryAsync(accessToken))
                 .Select(p => new Product { Id = p.Id, Name = p.Name })
                 .ToList();
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
+        }
+    }
+
+   // private void RemoveProduct(Product product)
+   private async Task RemoveProduct(Product product)
+   {
+
+        try
+        {
+            var accessToken = await SFService.GetAccessTokenAsync();
+            await SFService.DeleteProductAsync(accessToken, product.Id);
+
+            // Remove the product from the local list
+            Products.Remove(product);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Failed to delete product: {ex.Message}";
         }
     }
 

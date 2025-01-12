@@ -1,0 +1,78 @@
+﻿@page "/order-list"
+@using static SalesforceServices
+@inject SalesforceServices SFService
+@inject NavigationManager NavigationManager
+
+<h3>Orders</h3>
+
+@if (IsLoading)
+{
+    <p>Loading orders...</p>
+}
+else if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color: red;"><strong>Error:</strong> @ErrorMessage</p>
+}
+else if (Orders.Count == 0)
+{
+    <p>No orders found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Account ID</th>
+                <th>Total Amount</th>
+                <th>Actions</th> <!-- Add a column for actions -->
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in Orders)
+            {
+                <tr>
+                    <td>@order.Id</td>
+                    <td>@order.Name</td>
+                    <td>@order.Status</td>
+                    <td>@order.AccountId</td>
+                    <td>@order.TotalAmount?.ToString("C")</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditOrder(order.Id)">Edit</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Order> Orders = new();
+    private string ErrorMessage = "";
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var accessToken = await SFService.GetAccessTokenAsync();
+            Orders = await SFService.GetOrdersAsync(accessToken);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void EditOrder(string orderId)
+    {
+        // Navigate to an edit page with the order ID as a parameter
+        NavigationManager.NavigateTo($"/edit-order/{orderId}");
+    }
+}

@@ -14,7 +14,7 @@ builder.Services.AddHttpClient("Salesforce", client =>
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
-builder.Services.AddScoped<SalesforceAuthService>();
+builder.Services.AddScoped<SalesforceServices>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

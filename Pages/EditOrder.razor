@@ -1,0 +1,141 @@
+﻿@page "/edit-order/{orderId}"
+@using static SalesforceServices
+@inject SalesforceServices SFService
+@inject NavigationManager NavigationManager
+
+<h3>Edit Order</h3>
+
+@if (IsLoading)
+{
+    <p>Loading order details...</p>
+}
+else if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color: red;"><strong>Error:</strong> @ErrorMessage</p>
+}
+else
+{
+    <form>
+        <div class="mb-3">
+            <label for="orderName" class="form-label">Order Name</label>
+            <input id="orderName" class="form-control" @bind="Order.Name" />
+        </div>
+        <div class="mb-3">
+            <label for="orderStatus" class="form-label">Status</label>
+            <input id="orderStatus" class="form-control" @bind="Order.Status" />
+        </div>
+        <div class="mb-3">
+            <div class="row">
+                <div class="col">
+                    <label for="orderPricebook" class="form-label">Pricebook Name</label>
+                    <input id="orderPricebook" class="form-control" @bind="Order.PricebookName" />
+                </div>
+                <div class="col">
+                    <label for="pricebookId" class="form-label">Pricebook ID</label>
+                    <input id="pricebookId" class="form-control" @bind="Order.Pricebook2Id" />
+                </div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="orderAmount" class="form-label">Total Amount</label>
+            <input id="orderAmount" type="number" class="form-control" @bind="Order.TotalAmount" />
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="SaveOrder">Save</button>
+    </form>
+
+
+    <h4 class="mt-4">Available Products</h4>
+    @if (Products == null || Products.Count == 0)
+    {
+        <p>No products available to add.</p>
+    }
+    else
+    {
+        <table class="table table-striped mt-3">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in Products)
+                {
+                    <tr>
+                        <td>@product.Id</td>
+                        <td>@product.Name</td>
+                        <td>@product.Description</td>
+                        <td>
+                            <button class="btn btn-success btn-sm" @onclick="() => AddProductToOrder(product.Id)">Add to Order</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter]
+    public string OrderId { get; set; }
+
+    private Order Order = new();
+    private List<Product> Products = new();
+    private string ErrorMessage = "";
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            var accessToken = await SFService.GetAccessTokenAsync();
+
+            // Fetch order details
+            Order = await SFService.GetOrderByIdAsync(accessToken, OrderId);
+
+            // Fetch list of products
+            Products = await SFService.GetProductsAsync(accessToken);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task SaveOrder()
+    {
+        try
+        {
+            var accessToken = await SFService.GetAccessTokenAsync();
+            await SFService.UpdateOrderAsync(accessToken, Order);
+            NavigationManager.NavigateTo("/order-list");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task AddProductToOrder(string productId)
+    {
+        try
+        {
+            var accessToken = await SFService.GetAccessTokenAsync();
+            await SFService.AddProductToOrderAsync(accessToken, Order.Id, productId);
+
+            // Optionally update order total or reload products if needed
+            Order = await SFService.GetOrderByIdAsync(accessToken, OrderId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+}
