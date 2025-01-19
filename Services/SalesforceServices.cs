@@ -2,6 +2,8 @@
 using System.Text.Json;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 public class SalesforceServices
 {
@@ -138,7 +140,9 @@ public class SalesforceServices
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
-        var query = "SELECT Id, Name, Status, AccountId, TotalAmount FROM Order";
+        var query = "SELECT Id, Name, Status, AccountId,OrderNumber, TotalAmount FROM Order";
+
+        //  var query = "SELECT+Id,+OrderNumber,+Name,+Status,+AccountId,+Account.Name+FROM+Order+WHERE+Status='Activated'+ORDER+BY+OrderNumber+ASC";
         string url = $"{_configuration["Salesforce:myUrl"]}/services/data/v57.0/query?q={Uri.EscapeDataString(query)}";
         var response = await client.GetAsync(url);
         if (!response.IsSuccessStatusCode)
@@ -156,7 +160,7 @@ public class SalesforceServices
         {
             orders.Add(new Order
             {
-                Id = record.GetProperty("Id").GetString(),
+                OrderNumber = record.GetProperty("OrderNumber").GetString(),
                 Name = record.GetProperty("Name").GetString(),
                 Status = record.GetProperty("Status").GetString(),
                 AccountId = record.GetProperty("AccountId").GetString(),
@@ -166,6 +170,24 @@ public class SalesforceServices
 
         return orders;
     }
+    public async Task<EdiOrder> CreateEDIPOAsync(string accessToken, string orderNumber)
+    {
+        var client = _httpClientFactory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        string url = $"{_configuration["Salesforce:myUrl"]}/services/apexrest/orderDetailsEDI?action=getOrder&orderNumber={orderNumber}";
+        HttpResponseMessage response = await client.GetAsync(url);
+        string responseBody = await response.Content.ReadAsStringAsync();
+
+        // Order order = JsonSerializer
+        EdiOrder ediorder = System.Text.Json.JsonSerializer.Deserialize<EdiOrder>(responseBody, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            
+        });
+        return ediorder;
+    }
+
 
     public async Task<Order> GetOrderByIdAsync(string accessToken, string orderId)
     {
@@ -175,7 +197,7 @@ public class SalesforceServices
 
         // Salesforce SOQL query to get the order by ID
         var query = $"SELECT Id, Name, Status, AccountId, TotalAmount,Pricebook2Id,Pricebook2.Name FROM Order WHERE Id = '{orderId}'";
-        var url = $"{ _configuration["Salesforce:myUrl"]}/services/data/v57.0/query?q={Uri.EscapeDataString(query)}";
+        var url = $"{_configuration["Salesforce:myUrl"]}/services/data/v57.0/query?q={Uri.EscapeDataString(query)}";
         var response = await client.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -216,7 +238,7 @@ public class SalesforceServices
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
         // Salesforce API URL to update the Order
-  
+
         var url = $"{_configuration["Salesforce:myUrl"]}/services/data/v57.0/sobjects/Order/{order.Id}";
 
 
@@ -310,6 +332,7 @@ public class SalesforceServices
     public class Order
     {
         public string? Id { get; set; }
+        public string OrderNumber { get; set; }
         public string? PricebookName { get; set; }
         public string? Pricebook2Id { get; set; }
         public string? Name { get; set; }
@@ -323,5 +346,170 @@ public class SalesforceServices
         public string Name { get; set; }
         public string Description { get; set; }
     }
+
+
+
+    public class EdiOrder
+    {
+        [JsonPropertyName("accountDetails")]
+        public AccountDetails AccountDetails { get; set; }
+
+        [JsonPropertyName("contractDetails")]
+        public ContractDetails ContractDetails { get; set; }
+
+        [JsonPropertyName("deliveryDetails")]
+        public DeliveryDetails DeliveryDetails { get; set; }
+
+        [JsonPropertyName("orderDetails")]
+        public OrderDetails OrderDetails { get; set; }
+
+        [JsonPropertyName("orderItems")]
+        public List<OrderItem> OrderItems { get; set; }
+    }
+
+    public class AccountDetails
+    {
+        [JsonPropertyName("attributes")]
+        public Attributes Attributes { get; set; }
+
+        [JsonPropertyName("BillingCity")]
+        public string BillingCity { get; set; }
+
+        [JsonPropertyName("BillingPostalCode")]
+        public string BillingPostalCode { get; set; }
+
+        [JsonPropertyName("BillingState")]
+        public string BillingState { get; set; }
+
+        [JsonPropertyName("BillingStreet")]
+        public string BillingStreet { get; set; }
+
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("Name")]
+        public string Name { get; set; }
+    }
+
+    public class Attributes
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; }
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
+    }
+
+    public class ContractDetails
+    {
+        [JsonPropertyName("attributes")]
+        public Attributes Attributes { get; set; }
+
+        [JsonPropertyName("ContractNumber")]
+        public string ContractNumber { get; set; }
+
+        [JsonPropertyName("EndDate")]
+        public string EndDate { get; set; }
+
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("StartDate")]
+        public string StartDate { get; set; }
+
+        [JsonPropertyName("Status")]
+        public string Status { get; set; }
+    }
+
+    public class DeliveryDetails
+    {
+        [JsonPropertyName("BillingAddress")]
+        public string BillingAddress { get; set; }
+
+        [JsonPropertyName("ShippingAddress")]
+        public string ShippingAddress { get; set; }
+
+        [JsonPropertyName("ShippingCity")]
+        public string ShippingCity { get; set; }
+
+        [JsonPropertyName("ShippingPostalCode")]
+        public string ShippingPostalCode { get; set; }
+
+        [JsonPropertyName("ShippingState")]
+        public string ShippingState { get; set; }
+    }
+
+    public class OrderDetails
+    {
+        [JsonPropertyName("AccountId")]
+        public string AccountId { get; set; }
+
+        [JsonPropertyName("attributes")]
+        public Attributes Attributes { get; set; }
+
+        [JsonPropertyName("BillingStreet")]
+        public string BillingStreet { get; set; }
+
+        [JsonPropertyName("EffectiveDate")]
+        public string EffectiveDate { get; set; }
+
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("OrderNumber")]
+        public string OrderNumber { get; set; }
+
+        [JsonPropertyName("ShippingStreet")]
+        public string ShippingStreet { get; set; }
+
+        [JsonPropertyName("Status")]
+        public string Status { get; set; }
+
+        [JsonPropertyName("TotalAmount")]
+        public double TotalAmount { get; set; }
+    }
+
+    public class OrderItem
+    {
+        [JsonPropertyName("attributes")]
+        public Attributes Attributes { get; set; }
+
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("Product2")]
+        public Product2 Product2 { get; set; }
+
+        [JsonPropertyName("Product2Id")]
+        public string Product2Id { get; set; }
+
+        [JsonPropertyName("Quantity")]
+        public double Quantity { get; set; }
+
+        [JsonPropertyName("TotalPrice")]
+        public double TotalPrice { get; set; }
+
+        [JsonPropertyName("UnitPrice")]
+        public double UnitPrice { get; set; }
+    }
+
+    public class Product2
+    {
+        [JsonPropertyName("attributes")]
+        public Attributes Attributes { get; set; }
+
+        [JsonPropertyName("Id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("Name")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("ProductCode")]
+        public string ProductCode { get; set; }
+
+        [JsonPropertyName("StockKeepingUnit")]
+        public string StockKeepingUnit { get; set; }
+    }
+
 
 }

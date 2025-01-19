@@ -22,25 +22,29 @@ else
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Order ID</th>
+                <th>Order Number</th>
                 <th>Name</th>
                 <th>Status</th>
                 <th>Account ID</th>
                 <th>Total Amount</th>
-                <th>Actions</th> <!-- Add a column for actions -->
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var order in Orders)
             {
                 <tr>
-                    <td>@order.Id</td>
+                    <td>@order.OrderNumber</td>
                     <td>@order.Name</td>
                     <td>@order.Status</td>
                     <td>@order.AccountId</td>
                     <td>@order.TotalAmount?.ToString("C")</td>
                     <td>
-                        <button class="btn btn-primary btn-sm" @onclick="() => EditOrder(order.Id)">Edit</button>
+                        <button class="btn btn-primary btn-sm" @onclick="() => EditOrder(order.OrderNumber)">Edit</button>
+                        @if (order.Status == "Activated")
+                        {
+                            <button class="btn btn-success btn-sm" @onclick="() => CreateEDI(order.OrderNumber)">Create EDI PO</button>
+                        }
                     </td>
                 </tr>
             }
@@ -52,12 +56,12 @@ else
     private List<Order> Orders = new();
     private string ErrorMessage = "";
     private bool IsLoading = true;
-
+    private string accessToken = "";
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var accessToken = await SFService.GetAccessTokenAsync();
+             accessToken = await SFService.GetAccessTokenAsync();
             Orders = await SFService.GetOrdersAsync(accessToken);
         }
         catch (Exception ex)
@@ -74,5 +78,21 @@ else
     {
         // Navigate to an edit page with the order ID as a parameter
         NavigationManager.NavigateTo($"/edit-order/{orderId}");
+    }
+
+    private async Task CreateEDI(string OrderNumber)
+    {
+        try
+        {
+            // Call a service to create an EDI PO for the given order ID
+            await SFService.CreateEDIPOAsync(accessToken, OrderNumber);
+            // Optionally display a success message or refresh the list
+            Console.WriteLine($"EDI PO created for Order ID: {OrderNumber}");
+        }
+        catch (Exception ex)
+        {
+            // Handle any errors
+            Console.WriteLine($"Failed to create EDI PO for Order ID: {OrderNumber}, Error: {ex.Message}");
+        }
     }
 }
